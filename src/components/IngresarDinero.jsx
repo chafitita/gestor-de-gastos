@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 
-const TransactionForm = ({ onAddTransaction }) => {
+const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCategory }) => {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+  const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
   
   const categories = {
-    income: ['Salario', 'Freelance', 'Inversiones', 'Regalo', 'Otros ingresos'],
-    expense: ['Comida', 'Transporte', 'Vivienda', 'Entretenimiento', 'Salud', 'Educación', 'Otros gastos']
+    income: ['Salario', 'Freelance', 'Inversiones', 'Regalo', 'Otros ingresos', ...customCategories.income],
+    expense: ['Comida', 'Transporte', 'Vivienda', 'Entretenimiento', 'Salud', 'Educación', 'Otros gastos', ...customCategories.expense]
   };
 
   const handleSubmit = (e) => {
@@ -18,12 +20,7 @@ const TransactionForm = ({ onAddTransaction }) => {
     if (!amount || isNaN(amount) || amount <= 0) {
       toast.warn('Por favor ingresa un monto válido (mayor a 0)', {
         position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "light",
+        autoClose: 3000
       });
       return;
     }
@@ -31,12 +28,7 @@ const TransactionForm = ({ onAddTransaction }) => {
     if (!category) {
       toast.warn('Por favor selecciona una categoría', {
         position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        theme: "light",
+        autoClose: 3000
       });
       return;
     }
@@ -55,6 +47,16 @@ const TransactionForm = ({ onAddTransaction }) => {
     setAmount('');
     setCategory('');
     setDescription('');
+    setShowCustomCategoryInput(false);
+    setCustomCategoryName('');
+  };
+
+  const handleAddCustomCategory = () => {
+    if (onAddCustomCategory(type, customCategoryName)) {
+      setCategory(customCategoryName);
+      setCustomCategoryName('');
+      setShowCustomCategoryInput(false);
+    }
   };
 
   return (
@@ -81,7 +83,11 @@ const TransactionForm = ({ onAddTransaction }) => {
                 type="radio"
                 value="expense"
                 checked={type === 'expense'}
-                onChange={() => setType('expense')}
+                onChange={() => {
+                  setType('expense');
+                  setCategory('');
+                  setShowCustomCategoryInput(false);
+                }}
               />
               Gasto
             </label>
@@ -90,7 +96,11 @@ const TransactionForm = ({ onAddTransaction }) => {
                 type="radio"
                 value="income"
                 checked={type === 'income'}
-                onChange={() => setType('income')}
+                onChange={() => {
+                  setType('income');
+                  setCategory('');
+                  setShowCustomCategoryInput(false);
+                }}
               />
               Ingreso
             </label>
@@ -99,16 +109,60 @@ const TransactionForm = ({ onAddTransaction }) => {
         
         <div className="form-group">
           <label>Categoría:</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-          >
-            <option value="">Seleccione una categoría</option>
-            {categories[type].map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+          {!showCustomCategoryInput ? (
+            <>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+              >
+                <option value="">Seleccione una categoría</option>
+                {categories[type].map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="new">-- Agregar nueva categoría --</option>
+              </select>
+              
+              {category === 'new' && (
+                <button
+                  type="button"
+                  onClick={() => setShowCustomCategoryInput(true)}
+                  className="add-category-btn"
+                >
+                  Crear Nueva Categoría
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="custom-category-input">
+              <input
+                type="text"
+                value={customCategoryName}
+                onChange={(e) => setCustomCategoryName(e.target.value)}
+                placeholder="Nombre de la nueva categoría"
+                autoFocus
+              />
+              <div className="category-buttons">
+                <button
+                  type="button"
+                  onClick={handleAddCustomCategory}
+                  className="save-category-btn"
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomCategoryInput(false);
+                    setCategory('');
+                  }}
+                  className="cancel-category-btn"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="form-group">
@@ -122,7 +176,9 @@ const TransactionForm = ({ onAddTransaction }) => {
           />
         </div>
         
-        <button type="submit">Agregar Transacción</button>
+        <button type="submit" className="submit-btn">
+          Agregar Transacción
+        </button>
       </form>
     </div>
   );
