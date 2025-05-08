@@ -40,7 +40,3 @@ Caso de uso "Crear categoría"
 
 #### Test:
 [Planilla de testeos](https://docs.google.com/spreadsheets/d/1DXB9XJ65iz6PfVFWiciyzDRo-oDrGlB91sCZZRegKWw/edit?usp=sharing)
-
-|hola|mundo|
-|---|---|
-|aaa|aaaa|
