@@ -1,8 +1,7 @@
-import { useState } from 'react'
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
-import TransactionForm from './components/IngresarDinero'
-import './App.css'
+import TransactionForm from './components/IngresarDinero';
+import './App.css';
 
 const App = () => {
   const [transactions, setTransactions] = useState([]);
@@ -12,68 +11,101 @@ const App = () => {
   });
 
   useEffect(() => {
-    const savedTransactions = localStorage.getItem('transactions');
-    const savedCategories = localStorage.getItem('customCategories');
-    
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
-    
-    if (savedCategories) {
-      setCustomCategories(JSON.parse(savedCategories));
-    }
+    const fetchTransactions = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/transactions");
+        const data = await res.json();
+        setTransactions(data);
+      } catch (error) {
+        console.error("Error cargando transacciones:", error);
+      }
+    };
+
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/categories");
+        const data = await res.json();
+        const income = data.filter(cat => cat.type === "income").map(c => c.name);
+        const expense = data.filter(cat => cat.type === "expense").map(c => c.name);
+        setCustomCategories({ income, expense });
+      } catch (error) {
+        console.error("Error cargando categorías:", error);
+      }
+    };
+
+    fetchTransactions();
+    fetchCategories();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    localStorage.setItem('customCategories', JSON.stringify(customCategories));
-  }, [transactions, customCategories]);
-
-  const addTransaction = (transaction) => {
-    setTransactions([...transactions, transaction]);
-    toast.success(
-      `${transaction.type === 'expense' ? 'Gasto' : 'Ingreso'} agregado correctamente`, 
-      { position: "top-right", autoClose: 3000 }
-    );
+  const addTransaction = async (transaction) => {
+    try {
+      const res = await fetch("http://localhost:3001/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: transaction.amount,
+          type: transaction.type,
+          categoryId: transaction.categoryId, // asegurate que esté disponible
+          description: transaction.description,
+          date: transaction.date
+        })
+      });
+      const newTransaction = await res.json();
+      setTransactions([...transactions, newTransaction]);
+      toast.success("Transacción agregada correctamente", {
+        position: "top-right",
+        autoClose: 3000
+      });
+    } catch (error) {
+      toast.error("Error al agregar transacción", {
+        position: "top-right",
+        autoClose: 3000
+      });
+    }
   };
 
-  const deleteTransaction = (id) => {
-    const transactionToDelete = transactions.find(t => t.id === id);
-    setTransactions(transactions.filter(t => t.id !== id));
-    toast.error(
-      `Transacción de ${transactionToDelete.category} eliminada`, 
-      { position: "top-right", autoClose: 3000 }
-    );
+  const deleteTransaction = async (id) => {
+    try {
+      await fetch(`http://localhost:3001/api/transactions/${id}`, {
+        method: "DELETE",
+      });
+      setTransactions(transactions.filter(t => t.id !== id));
+      toast.error("Transacción eliminada", {
+        position: "top-right",
+        autoClose: 3000
+      });
+    } catch (error) {
+      toast.error("Error al eliminar transacción", {
+        position: "top-right",
+        autoClose: 3000
+      });
+    }
   };
 
-  const addCustomCategory = (type, categoryName) => {
-    if (!categoryName.trim()) {
-      toast.warn('El nombre de la categoría no puede estar vacío', {
+  const addCustomCategory = async (type, categoryName) => {
+    try {
+      const res = await fetch("http://localhost:3001/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: categoryName, type })
+      });
+      const newCategory = await res.json();
+      setCustomCategories(prev => ({
+        ...prev,
+        [type]: [...prev[type], newCategory.name]
+      }));
+      toast.success(`Categoría "${categoryName}" agregada`, {
+        position: "top-right",
+        autoClose: 3000
+      });
+      return true;
+    } catch (error) {
+      toast.error("Error al agregar categoría", {
         position: "top-right",
         autoClose: 3000
       });
       return false;
     }
-
-    if (customCategories[type].includes(categoryName)) {
-      toast.warn('Esta categoría ya existe', {
-        position: "top-right",
-        autoClose: 3000
-      });
-      return false;
-    }
-
-    setCustomCategories(prev => ({
-      ...prev,
-      [type]: [...prev[type], categoryName]
-    }));
-
-    toast.success(`Categoría "${categoryName}" agregada`, {
-      position: "top-right",
-      autoClose: 3000
-    });
-
-    return true;
   };
 
   return (
@@ -84,7 +116,7 @@ const App = () => {
         customCategories={customCategories}
         onAddCustomCategory={addCustomCategory}
       />
-      
+
       <div className="transactions-list">
         <h2>Historial de Transacciones</h2>
         {transactions.length === 0 ? (
@@ -93,13 +125,12 @@ const App = () => {
           <ul>
             {transactions.map((transaction) => (
               <li key={transaction.id} className={transaction.type}>
-                <span className="category">{transaction.category}</span>
+                <span className="category">{transaction.Category?.name || transaction.category}</span>
                 {transaction.description && (
                   <span className="description"> - {transaction.description}</span>
                 )}
                 <span className="amount">
-                  {transaction.type === 'expense' ? '-' : '+'}
-                  ${transaction.amount}
+                  {transaction.type === 'expense' ? '-' : '+'}${transaction.amount}
                 </span>
                 <span className="date">
                   {new Date(transaction.date).toLocaleDateString()}
@@ -115,7 +146,7 @@ const App = () => {
           </ul>
         )}
       </div>
-      
+
       <ToastContainer />
     </div>
   );

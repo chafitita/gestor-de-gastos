@@ -8,15 +8,15 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
   const [description, setDescription] = useState('');
   const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
-  
+
   const categories = {
-    income: ['Salario', 'Freelance', 'Inversiones', 'Regalo', 'Otros ingresos', ...customCategories.income],
-    expense: ['Comida', 'Transporte', 'Vivienda', 'Entretenimiento', 'Salud', 'Educación', 'Otros gastos', ...customCategories.expense]
+    income: customCategories.income,
+    expense: customCategories.expense
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!amount || isNaN(amount) || amount <= 0) {
       toast.warn('Por favor ingresa un monto válido (mayor a 0)', {
         position: "top-right",
@@ -24,7 +24,7 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
       });
       return;
     }
-    
+
     if (!category) {
       toast.warn('Por favor selecciona una categoría', {
         position: "top-right",
@@ -32,27 +32,41 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
       });
       return;
     }
-    
-    const transaction = {
-      id: Date.now(),
-      amount: parseInt(amount),
-      type,
-      category,
-      description,
-      date: new Date().toISOString()
-    };
-    
-    onAddTransaction(transaction);
-    
-    setAmount('');
-    setCategory('');
-    setDescription('');
-    setShowCustomCategoryInput(false);
-    setCustomCategoryName('');
+
+    try {
+      const res = await fetch("http://localhost:3001/api/categories");
+      const allCategories = await res.json();
+      const selected = allCategories.find(cat => cat.name === category && cat.type === type);
+
+      if (!selected) {
+        toast.error("Categoría no encontrada en la base de datos");
+        return;
+      }
+
+      const transaction = {
+        amount: parseFloat(amount),
+        type,
+        categoryId: selected.id,
+        description,
+        date: new Date().toISOString()
+      };
+
+      onAddTransaction(transaction);
+
+      setAmount('');
+      setCategory('');
+      setDescription('');
+      setShowCustomCategoryInput(false);
+      setCustomCategoryName('');
+    } catch (error) {
+      console.error("Error al preparar transacción:", error);
+      toast.error("Ocurrió un error al enviar la transacción");
+    }
   };
 
-  const handleAddCustomCategory = () => {
-    if (onAddCustomCategory(type, customCategoryName)) {
+  const handleAddCustomCategory = async () => {
+    const ok = await onAddCustomCategory(type, customCategoryName);
+    if (ok) {
       setCategory(customCategoryName);
       setCustomCategoryName('');
       setShowCustomCategoryInput(false);
@@ -71,10 +85,10 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Ingrese el monto"
             min="1"
-            step="1"
+            step="0.01"
           />
         </div>
-        
+
         <div className="form-group">
           <label>Tipo:</label>
           <div className="type-options">
@@ -106,7 +120,7 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
             </label>
           </div>
         </div>
-        
+
         <div className="form-group">
           <label>Categoría:</label>
           {!showCustomCategoryInput ? (
@@ -122,7 +136,7 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
                 ))}
                 <option value="new">-- Agregar nueva categoría --</option>
               </select>
-              
+
               {category === 'new' && (
                 <button
                   type="button"
@@ -164,7 +178,7 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
             </div>
           )}
         </div>
-        
+
         <div className="form-group">
           <label>Descripción (opcional):</label>
           <input
@@ -175,7 +189,7 @@ const TransactionForm = ({ onAddTransaction, customCategories, onAddCustomCatego
             maxLength="50"
           />
         </div>
-        
+
         <button type="submit" className="submit-btn">
           Agregar Transacción
         </button>
