@@ -13,7 +13,7 @@ export default function CategoryManagerList({ type = "income", onChange }) {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/categories?type=${type}`);
+      const res = await fetch(`http://localhost:3001/api/categories?type=${type}`);
       const data = await res.json();
       setCategories(data);
     } catch (error) {
@@ -30,7 +30,7 @@ export default function CategoryManagerList({ type = "income", onChange }) {
 
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3000/api/categories`, {
+      const res = await fetch(`http://localhost:3001/api/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, type }),
@@ -52,7 +52,7 @@ export default function CategoryManagerList({ type = "income", onChange }) {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/categories/${id}`, {
+      const res = await fetch(`http://localhost:3001/api/categories/${id}`, {
         method: "DELETE",
       });
 
