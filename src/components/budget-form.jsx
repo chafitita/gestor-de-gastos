@@ -87,17 +87,18 @@ const BudgetForm = ({ onAddTransaction }) => {
 
 
   React.useEffect(() => {
-    const storedCustomCategories = localStorage.getItem("budgetwise_custom_categories");
-    if (storedCustomCategories) {
-      try {
-        const parsed = JSON.parse(storedCustomCategories);
-        if (parsed.income && Array.isArray(parsed.income)) setCustomIncomeCategories(parsed.income);
-        if (parsed.expense && Array.isArray(parsed.expense)) setCustomExpenseCategories(parsed.expense);
-      } catch (error) {
-        console.error("Error parsing custom categories from localStorage:", error);
-      }
+  const fetchCustomCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/categorias/base");
+      const data = await res.json();
+      setCustomIncomeCategories(data.income || []);
+      setCustomExpenseCategories(data.expense || []);
+    } catch (error) {
+      toast({ title: "Error", description: "Error al cargar categorías desde el servidor.", variant: "destructive" });
     }
-  }, []);
+  };
+  fetchCustomCategories();
+}, []);
 
   const saveCustomCategoriesToLocalStorage = (incomeCats, expenseCats) => {
     localStorage.setItem(
@@ -134,43 +135,45 @@ const BudgetForm = ({ onAddTransaction }) => {
     setNewCategoryName("");
   };
 
-  const handleSaveNewCategory = () => {
-    const trimmedName = newCategoryName.trim();
-    if (!trimmedName) {
-      toast({ title: "Error", description: "El nombre de la categoría no puede estar vacío.", variant: "destructive" });
-      return;
-    }
+  const handleSaveNewCategory = async () => {
+  const trimmedName = newCategoryName.trim();
+  if (!trimmedName) {
+    toast({ title: "Error", description: "El nombre de la categoría no puede estar vacío.", variant: "destructive" });
+    return;
+  }
 
-    const allCategoriesForType = selectedType === 'income' 
-        ? [...baseIncomeCategories, ...customIncomeCategories] 
-        : [...baseExpenseCategories, ...customExpenseCategories];
+  const allCategories = selectedType === 'income' 
+    ? [...baseIncomeCategories, ...customIncomeCategories] 
+    : [...baseExpenseCategories, ...customExpenseCategories];
 
-    const categoryExists = allCategoriesForType.some(
-      (cat) => cat.toLowerCase() === trimmedName.toLowerCase()
-    );
+  if (allCategories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
+    toast({ title: "Error", description: "Esta categoría ya existe.", variant: "destructive" });
+    return;
+  }
 
-    if (categoryExists) {
-      toast({ title: "Error", description: "Esta categoría ya existe.", variant: "destructive" });
-      return;
-    }
-
-    let updatedCustomIncome = [...customIncomeCategories];
-    let updatedCustomExpense = [...customExpenseCategories];
+  try {
+    const res = await fetch("http://localhost:3000/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: selectedType, name: trimmedName }),
+    });
+    const newCategory = await res.json();
 
     if (selectedType === "income") {
-      updatedCustomIncome = [...customIncomeCategories, trimmedName].sort((a,b) => a.localeCompare(b));
-      setCustomIncomeCategories(updatedCustomIncome);
+      setCustomIncomeCategories(prev => [...prev, newCategory.name]);
     } else {
-      updatedCustomExpense = [...customExpenseCategories, trimmedName].sort((a,b) => a.localeCompare(b));
-      setCustomExpenseCategories(updatedCustomExpense);
+      setCustomExpenseCategories(prev => [...prev, newCategory.name]);
     }
-    saveCustomCategoriesToLocalStorage(updatedCustomIncome, updatedCustomExpense);
 
-    setValue("subCategory", trimmedName); 
-    setShowAddCategoryInput(false);
+    setValue("subCategory", newCategory.name);
+    toast({ title: "Éxito", description: `Categoría "${newCategory.name}" añadida.` });
     setNewCategoryName("");
-    toast({ title: "Éxito", description: `Categoría "${trimmedName}" añadida.` });
-  };
+    setShowAddCategoryInput(false);
+  } catch (err) {
+    toast({ title: "Error", description: "No se pudo guardar la categoría.", variant: "destructive" });
+  }
+};
+
 
   const handleEditCategory = (type, oldName) => {
     setEditingCategory({ type, oldName });
@@ -182,87 +185,81 @@ const BudgetForm = ({ onAddTransaction }) => {
     setEditedCategoryName("");
   };
   
-  const handleSaveEditedCategory = () => {
-    if (!editingCategory) return;
+  const handleSaveEditedCategory = async () => {
+  if (!editingCategory) return;
+  const { type, oldName } = editingCategory;
+  const newName = editedCategoryName.trim();
 
-    const { type, oldName } = editingCategory;
-    const newName = editedCategoryName.trim();
-
-    if (!newName) {
-      toast({ title: "Error", description: "El nuevo nombre no puede estar vacío.", variant: "destructive" });
-      return;
-    }
-
-    if (newName.toLowerCase() === oldName.toLowerCase()) {
-      handleCancelEditCategory();
-      return;
-    }
-    
-    const allBaseCategories = type === 'income' ? baseIncomeCategories : baseExpenseCategories;
-    const allCustomCategoriesForType = type === 'income' ? customIncomeCategories : customExpenseCategories;
-
-    const nameExistsInBase = allBaseCategories.some(cat => cat.toLowerCase() === newName.toLowerCase());
-    const nameExistsInCustom = allCustomCategoriesForType.some(cat => cat.toLowerCase() === newName.toLowerCase() && cat.toLowerCase() !== oldName.toLowerCase());
-
-    if (nameExistsInBase || nameExistsInCustom) {
-      toast({ title: "Error", description: `La categoría "${newName}" ya existe.`, variant: "destructive" });
-      return;
-    }
-
-    let updatedIncome = [...customIncomeCategories];
-    let updatedExpense = [...customExpenseCategories];
-
-    if (type === 'income') {
-      updatedIncome = customIncomeCategories.map(cat => cat === oldName ? newName : cat).sort((a,b) => a.localeCompare(b));
-      setCustomIncomeCategories(updatedIncome);
-    } else {
-      updatedExpense = customExpenseCategories.map(cat => cat === oldName ? newName : cat).sort((a,b) => a.localeCompare(b));
-      setCustomExpenseCategories(updatedExpense);
-    }
-    saveCustomCategoriesToLocalStorage(updatedIncome, updatedExpense);
-    
-    if (watch("subCategory") === oldName && selectedType === type) {
-        setValue("subCategory", newName);
-    }
-
-    toast({ title: "Éxito", description: `Categoría "${oldName}" renombrada a "${newName}".` });
+  if (!newName || newName === oldName) {
     handleCancelEditCategory();
-  };
+    return;
+  }
+
+  try {
+    const res = await fetch("http://localhost:3000/api/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, oldName, newName }),
+    });
+
+    if (!res.ok) throw new Error("Error en el servidor");
+
+    const updateCategoryState = (prev) => prev.map(cat => cat === oldName ? newName : cat);
+    if (type === "income") {
+      setCustomIncomeCategories(updateCategoryState);
+    } else {
+      setCustomExpenseCategories(updateCategoryState);
+    }
+
+    if (watch("subCategory") === oldName && selectedType === type) {
+      setValue("subCategory", newName);
+    }
+
+    toast({ title: "Éxito", description: `Categoría renombrada a "${newName}".` });
+    handleCancelEditCategory();
+  } catch (err) {
+    toast({ title: "Error", description: "No se pudo editar la categoría.", variant: "destructive" });
+  }
+};
 
   const handleDeleteCategoryClick = (type, categoryName) => {
     setCategoryToDelete({ type, name: categoryName });
     setIsDeleteDialogOpen(true);
   };
 
-  const handleConfirmDeleteCategory = () => {
-    if (!categoryToDelete) return;
+  const handleConfirmDeleteCategory = async () => {
+  if (!categoryToDelete) return;
+  const { type, name } = categoryToDelete;
 
-    const { type, name } = categoryToDelete;
+  try {
+    const res = await fetch("http://localhost:3000/api/categories", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, name }),
+    });
 
-    let newIncomeCategories = [...customIncomeCategories];
-    let newExpenseCategories = [...customExpenseCategories];
+    if (!res.ok) throw new Error("Error al eliminar");
 
     if (type === "income") {
-      newIncomeCategories = customIncomeCategories.filter(cat => cat !== name);
-      setCustomIncomeCategories(newIncomeCategories);
-    } else { // type === "expense"
-      newExpenseCategories = customExpenseCategories.filter(cat => cat !== name);
-      setCustomExpenseCategories(newExpenseCategories);
+      setCustomIncomeCategories(prev => prev.filter(cat => cat !== name));
+    } else {
+      setCustomExpenseCategories(prev => prev.filter(cat => cat !== name));
     }
 
-    saveCustomCategoriesToLocalStorage(newIncomeCategories, newExpenseCategories);
-
-    // If the deleted category was selected in the form, clear it
     if (watch("subCategory") === name && selectedType === type) {
       setValue("subCategory", "");
-      trigger("subCategory"); // Re-validate if necessary
+      trigger("subCategory");
     }
 
     toast({ title: "Éxito", description: `Categoría "${name}" eliminada.` });
-    setIsDeleteDialogOpen(false);
-    setCategoryToDelete(null);
-    // Optional: setIsManageCategoriesDialogOpen(false); // Close the manage categories dialog too
-  };
+  } catch (err) {
+    toast({ title: "Error", description: "No se pudo eliminar la categoría.", variant: "destructive" });
+  }
+
+  setIsDeleteDialogOpen(false);
+  setCategoryToDelete(null);
+};
+
 
 
   const onSubmit = async (data) => {

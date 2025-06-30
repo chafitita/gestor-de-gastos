@@ -12,69 +12,173 @@ const App = () => {
   });
 
   useEffect(() => {
-    const savedTransactions = localStorage.getItem('transactions');
-    const savedCategories = localStorage.getItem('customCategories');
-    
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
-    
-    if (savedCategories) {
-      setCustomCategories(JSON.parse(savedCategories));
-    }
-  }, []);
+  const fetchTransactions = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/gastos");
 
-  useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    localStorage.setItem('customCategories', JSON.stringify(customCategories));
-  }, [transactions, customCategories]);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error al cargar transacciones");
+      }
 
-  const addTransaction = (transaction) => {
-    setTransactions([...transactions, transaction]);
-    toast.success(
-      `${transaction.type === 'expense' ? 'Gasto' : 'Ingreso'} agregado correctamente`, 
-      { position: "top-right", autoClose: 3000 }
-    );
+      const data = await res.json();
+      setTransactions(data);
+    } catch (error) {
+      toast.error(`Error al cargar transacciones: ${error.message}`, {
+        position: "top-right",
+        autoClose: 3000
+      });
+    }
   };
 
-  const deleteTransaction = (id) => {
+  fetchTransactions();
+}, []);
+
+
+
+  useEffect(() => {
+  const fetchCustomCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/custom-categories");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error al obtener categorías");
+      }
+
+      const data = await res.json();
+      const formatted = { income: [], expense: [] };
+
+      for (const category of data) {
+        if (category.type === "income") {
+          formatted.income.push(category.name);
+        } else if (category.type === "expense") {
+          formatted.expense.push(category.name);
+        }
+      }
+
+      setCustomCategories(formatted);
+    } catch (error) {
+      toast.error(`Error al cargar categorías: ${error.message}`, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    }
+  };
+
+  fetchCustomCategories();
+}, []);
+
+  const addTransaction = async (transaction) => {
+  try {
+    const res = await fetch("http://localhost:3000/api/gastos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(transaction)
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Error al agregar la transacción");
+    }
+
+    const savedTransaction = await res.json();
+    setTransactions(prev => [...prev, savedTransaction]);
+
+    toast.success(
+      `${savedTransaction.type === 'expense' ? 'Gasto' : 'Ingreso'} agregado correctamente`, 
+      { position: "top-right", autoClose: 3000 }
+    );
+  } catch (err) {
+    toast.error(`Error: ${err.message}`, {
+      position: "top-right",
+      autoClose: 3000
+    });
+  }
+};
+
+
+  const deleteTransaction = async (id) => {
+  try {
     const transactionToDelete = transactions.find(t => t.id === id);
+
+    const res = await fetch(`http://localhost:3000/api/gastos/${id}`, {
+      method: "DELETE"
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Error al eliminar la transacción");
+    }
+
     setTransactions(transactions.filter(t => t.id !== id));
+
     toast.error(
       `Transacción de ${transactionToDelete.category} eliminada`, 
       { position: "top-right", autoClose: 3000 }
     );
-  };
+  } catch (err) {
+    toast.error(`Error: ${err.message}`, {
+      position: "top-right",
+      autoClose: 3000
+    });
+  }
+};
 
-  const addCustomCategory = (type, categoryName) => {
-    if (!categoryName.trim()) {
-      toast.warn('El nombre de la categoría no puede estar vacío', {
-        position: "top-right",
-        autoClose: 3000
-      });
-      return false;
+
+  const addCustomCategory = async (type, categoryName) => {
+  if (!categoryName.trim()) {
+    toast.warn("El nombre de la categoría no puede estar vacío", {
+      position: "top-right",
+      autoClose: 3000,
+    });
+    return false;
+  }
+
+  // Verificamos si ya existe localmente
+  if (customCategories[type].includes(categoryName)) {
+    toast.warn("Esta categoría ya existe", {
+      position: "top-right",
+      autoClose: 3000,
+    });
+    return false;
+  }
+
+  try {
+    const res = await fetch("http://localhost:3000/api/categorias/custom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, name: categoryName }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Error al agregar categoría");
     }
 
-    if (customCategories[type].includes(categoryName)) {
-      toast.warn('Esta categoría ya existe', {
-        position: "top-right",
-        autoClose: 3000
-      });
-      return false;
-    }
-
-    setCustomCategories(prev => ({
+    setCustomCategories((prev) => ({
       ...prev,
-      [type]: [...prev[type], categoryName]
+      [type]: [...prev[type], categoryName],
     }));
 
     toast.success(`Categoría "${categoryName}" agregada`, {
       position: "top-right",
-      autoClose: 3000
+      autoClose: 3000,
     });
 
     return true;
-  };
+  } catch (error) {
+    toast.error(`Error al agregar categoría: ${error.message}`, {
+      position: "top-right",
+      autoClose: 3000,
+    });
+    return false;
+  }
+};
+
+
 
   return (
     <div className="app-container">
