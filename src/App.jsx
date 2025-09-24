@@ -45,7 +45,7 @@ const App = () => {
         body: JSON.stringify({
           amount: transaction.amount,
           type: transaction.type,
-          categoryId: transaction.categoryId, // asegurate que esté disponible
+          categoryId: transaction.categoryId,
           description: transaction.description,
           date: transaction.date
         })

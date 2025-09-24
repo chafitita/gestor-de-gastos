@@ -5,7 +5,6 @@ import * as React from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const CategoryBarChart = ({ data }) => {
-  // Use fixed chart colors from theme
   const chartColors = [
     'hsl(var(--chart-1))',
     'hsl(var(--chart-2))',
@@ -18,10 +17,9 @@ const CategoryBarChart = ({ data }) => {
     return <p className="text-muted-foreground text-center py-4">No hay datos de categorías para mostrar.</p>;
   }
   
-  // Ensure data has a 'name' and 'value' for the chart
   const chartData = data.map(item => ({
-    name: item.name, // Category name
-    value: item.value, // Amount
+    name: item.name,
+    value: item.value,
   }));
 
   return (

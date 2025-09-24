@@ -53,7 +53,7 @@ export default function BudgetForm({ year, month }) {
 
   React.useEffect(() => {
     fetchCategories();
-    setValue("category", ""); // limpia categoría al cambiar tipo
+    setValue("category", "");
   }, [type]);
 
   const onSubmit = async (values) => {
@@ -72,7 +72,7 @@ export default function BudgetForm({ year, month }) {
       if (!res.ok) throw new Error("Error al añadir transacción");
       toast.success("Transacción añadida");
       reset();
-      fetchCategories(); // refresca por si hubo cambios
+      fetchCategories();
     } catch (error) {
       toast.error("Error al enviar datos");
     } finally {

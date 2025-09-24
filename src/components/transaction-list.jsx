@@ -24,9 +24,9 @@ const TransactionList = ({ transactions }) => {
        <CardHeader>
         <CardTitle className="text-xl font-semibold text-center text-foreground">Historial de Transacciones</CardTitle>
       </CardHeader>
-      <CardContent className="p-0"> {/* Remove padding for edge-to-edge list items */}
-        <ScrollArea className="h-[450px]"> {/* Adjust height as needed */}
-          <div className="space-y-0"> {/* Remove space-y for tighter list */}
+      <CardContent className="p-0">
+        <ScrollArea className="h-[450px]">
+          <div className="space-y-0">
             {transactions.map((transaction) => (
               <TransactionItem key={transaction.id} transaction={transaction} />
             ))}

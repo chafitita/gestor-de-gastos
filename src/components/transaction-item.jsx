@@ -31,7 +31,6 @@ const TransactionItem = ({ transaction }) => {
   const isIncome = type === 'income';
   const IconComponent = getCategoryIcon(subCategory);
 
-  // Simplified layout for fitting into a table-like structure
   return (
     <div className={cn(
       "flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors duration-150 border-b",
